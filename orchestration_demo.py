@@ -3,6 +3,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+REQUEST_FILE = Path("simulation_request.json")
+PLAN_FILE = Path("plan.json")
+PRE_GATE_FILE = Path("gate_pre.json")
+RESULTS_FILE = Path("results.json")
+REPORT_FILE = Path("report.json")
 
 REQUIRED_FIELDS = {
     "case_id",
@@ -15,26 +20,19 @@ REQUIRED_FIELDS = {
     "review_threshold",
 }
 
-
-def read_json(path: Path | str) -> dict[str, Any]:
+def read_json(path: Path)-> dict[str, Any]:
     """Read and return a JSON object from a file."""
-    path = Path(path)
-
     with path.open("r", encoding="utf-8") as file:
         return json.load(file)
 
-
-def write_json(path: Path | str, data: dict[str, Any]) -> None:
+def write_json(path: Path, data: dict[str, Any])-> None:
     """Write a dictionary to a formatted JSON file."""
-    path = Path(path)
-
     with path.open("w", encoding="utf-8") as file:
         json.dump(data, file, indent=2)
 
 
-def create_plan(request: dict[str, Any]) -> dict[str, Any]:
-    """Create the deterministic baseline execution plan."""
-
+def create_plan(request: dict[str, Any])-> dict[str, Any]:
+    """Planner: convert the request into an ordered execution plan."""
     return {
         "case_id": request["case_id"],
         "simulation": "two_dimensional_heat_diffusion",
@@ -62,85 +60,74 @@ def create_plan(request: dict[str, Any]) -> dict[str, Any]:
         },
     }
 
-
 def validate_request(
     request: dict[str, Any],
     plan: dict[str, Any],
-) -> dict[str, Any]:
-
+)-> dict[str, Any]:
+    """Reviewer and control: validate inputs and enforce hard limits."""
     missing = sorted(REQUIRED_FIELDS - request.keys())
 
     if missing:
         return {
             "status": "failed",
-            "checks": {
-                "required_fields": "failed"
-            },
+            "checks": {"required_fields": "failed"},
             "message": f"Missing required fields: {missing}",
         }
-
+    
     checks = {
-        "required_fields": "passed",
-        "grid_size": "passed",
-        "time_steps": "passed",
-        "diffusion_rate": "passed",
-        "temperature_values": "passed",
+            "required_fields": "passed",
+            "grid_size": "passed",
+            "time_steps": "passed",
+            "diffusion_rate": "passed",
+            "temperature_values": "passed",
     }
 
-    # HARD CONTROLLER LIMITS
-    MIN_GRID_SIZE = 3
-    MAX_GRID_SIZE = 100
-    MAX_TIME_STEPS = 10000
-    MAX_DIFFUSION_RATE = 0.25
-
     grid_size = request["grid_size"]
-
-    if not isinstance(grid_size, int) or not (
-        MIN_GRID_SIZE <= grid_size <= MAX_GRID_SIZE
-    ):
-        checks["grid_size"] = "failed"
-
-        return {
-            "status": "failed",
-            "checks": checks,
-            "message": (
-                f"grid_size must be an integer between "
-                f"{MIN_GRID_SIZE} and {MAX_GRID_SIZE}"
-            ),
-        }
-
     time_steps = request["time_steps"]
-
-    if not isinstance(time_steps, int) or not (
-        1 <= time_steps <= MAX_TIME_STEPS
-    ):
-        checks["time_steps"] = "failed"
-
-        return {
-            "status": "failed",
-            "checks": checks,
-            "message": (
-                f"time_steps must be an integer between 1 and "
-                f"{MAX_TIME_STEPS}"
-            ),
-        }
-
     diffusion_rate = request["diffusion_rate"]
 
-    if not isinstance(diffusion_rate, (int, float)) or not (
-        0 < diffusion_rate <= MAX_DIFFUSION_RATE
-    ):
-        checks["diffusion_rate"] = "failed"
+    constraints = plan["constraints"]
 
+    if not isinstance(grid_size, int) or not (
+        3<=grid_size<= constraints["max_grid_size"]
+    ):
+        checks["grid_size"] = "failed"
         return {
             "status": "failed",
             "checks": checks,
             "message": (
-                "diffusion_rate must be greater than 0 and no more "
-                f"than {MAX_DIFFUSION_RATE}"
+                "grid_size must be an integer between 3 and "
+                f"{constraints['max_grid_size']}"
             ),
         }
 
+    if not isinstance(time_steps, int) or not (
+        1<=time_steps<= constraints["max_time_steps"]
+    ):
+        checks["time_steps"] = "failed"
+        return {
+            "status": "failed",
+            "checks": checks,
+            "message": (
+                "time_steps must be an integer between 1 and "
+                f"{constraints['max_time_steps']}"
+            ),
+        }
+    
+    if not isinstance(diffusion_rate, (int, float)) or not (
+        0< diffusion_rate<= constraints["max_diffusion_rate"]
+    ):
+        checks["diffusion_rate"] = "failed"
+        return {
+            "status": "failed",
+            "checks": checks,
+            "message": (
+                "diffusion_rate must be greater than 0 and no more than "
+                f"{constraints['max_diffusion_rate']}"
+            ),
+        }
+
+    
     temperature_fields = [
         "initial_temperature",
         "boundary_temperature",
@@ -153,16 +140,13 @@ def validate_request(
         for field in temperature_fields
     ):
         checks["temperature_values"] = "failed"
-
         return {
             "status": "failed",
             "checks": checks,
             "message": "All temperature values must be numeric.",
         }
-
-    if request["hotspot_temperature"] < request["initial_temperature"]:
+    if request["hotspot_temperature"]< request["initial_temperature"]:
         checks["temperature_values"] = "failed"
-
         return {
             "status": "failed",
             "checks": checks,
@@ -171,7 +155,7 @@ def validate_request(
                 "initial_temperature."
             ),
         }
-
+    
     return {
         "status": "passed",
         "checks": checks,
@@ -179,9 +163,8 @@ def validate_request(
     }
 
 
-def build_initial_grid(request: dict[str, Any]) -> list[list[float]]:
+def build_initial_grid(request: dict[str, Any])-> list[list[float]]:
     """Create the plate and place a hotspot at its center."""
-
     size = request["grid_size"]
     initial = float(request["initial_temperature"])
     boundary = float(request["boundary_temperature"])
@@ -205,42 +188,45 @@ def build_initial_grid(request: dict[str, Any]) -> list[list[float]]:
 
 
 def run_heat_simulation(
-    request: dict[str, Any],
-) -> dict[str, Any]:
-    """Run a simple two-dimensional heat-diffusion simulation."""
+ request: dict[str, Any],
+)-> dict[str, Any]:
+    """Executor: run a simple two-dimensional heat-diffusion model."""
+    grid = build_initial_grid(request)
 
     size = request["grid_size"]
     time_steps = request["time_steps"]
-    diffusion_rate = request["diffusion_rate"]
-
-    grid = build_initial_grid(request)
+    diffusion_rate = float(request["diffusion_rate"])
+    boundary = float(request["boundary_temperature"])
 
     start_time = time.perf_counter()
 
     for _ in range(time_steps):
-        new_grid = [row[:] for row in grid]
-
+        updated = [row[:] for row in grid]
         for row in range(1, size - 1):
-            for col in range(1, size - 1):
-
-                neighbor_average = (
-                    grid[row - 1][col]
-                    + grid[row + 1][col]
-                    + grid[row][col - 1]
-                    + grid[row][col + 1]
-                ) / 4.0
-
-                new_grid[row][col] = (
-                    grid[row][col]
-                    + diffusion_rate
-                    * (neighbor_average - grid[row][col])
+            for column in range(1, size - 1):
+                neighbor_difference = (
+                    grid[row - 1][column]
+                    + grid[row + 1][column]
+                    + grid[row][column - 1]
+                    + grid[row][column + 1]
+                    - 4 * grid[row][column]
                 )
 
-        grid = new_grid
+                updated[row][column] = (
+                    grid[row][column]
+                    + diffusion_rate * neighbor_difference
+                )
 
-    runtime = time.perf_counter() - start_time
+        for index in range(size):
+            updated[0][index] = boundary
+            updated[size - 1][index] = boundary
+            updated[index][0] = boundary
+            updated[index][size - 1] = boundary
 
-    values = [
+        grid = updated
+
+    runtime_seconds = time.perf_counter() - start_time
+    temperatures = [
         value
         for row in grid
         for value in row
@@ -253,18 +239,20 @@ def run_heat_simulation(
         "status": "completed",
         "grid_size": size,
         "iterations": time_steps,
-        "minimum_temperature": min(values),
-        "maximum_temperature": max(values),
-        "average_temperature": sum(values) / len(values),
-        "center_temperature": grid[center][center],
-        "runtime_seconds": runtime,
+        "minimum_temperature": round(min(temperatures), 3),
+        "maximum_temperature": round(max(temperatures), 3),
+        "average_temperature": round(
+            sum(temperatures) / len(temperatures),
+            3,
+        ),
+        "center_temperature": round(grid[center][center], 3),
+        "runtime_seconds": round(runtime_seconds, 6),
     }
 
 
-def validate_results(results: dict[str, Any]) -> None:
-    """Validate simulation output."""
-
-    required_fields = [
+def validate_results(results: dict[str, Any])-> None:
+    """Post-run gate: reject incomplete or invalid solver output."""
+    required_result_fields = {
         "case_id",
         "status",
         "grid_size",
@@ -274,67 +262,93 @@ def validate_results(results: dict[str, Any]) -> None:
         "average_temperature",
         "center_temperature",
         "runtime_seconds",
-    ]
-
-    missing = [
-        field
-        for field in required_fields
-        if field not in results
-    ]
+    }
+    missing = sorted(required_result_fields - results.keys())
 
     if missing:
         raise ValueError(
-            f"results.json is missing fields: {missing}"
+            f"Results are missing required fields: {missing}"
         )
 
     if results["status"] != "completed":
+        raise ValueError("The simulation did not complete successfully.")
+
+    if (
+        results["minimum_temperature"] > results["maximum_temperature"]
+    ):
         raise ValueError(
-            "The simulation did not complete successfully."
+            "The minimum temperature exceeds the maximum temperature."
         )
-
-    numeric_fields = [
-        "minimum_temperature",
-        "maximum_temperature",
-        "average_temperature",
-        "center_temperature",
-        "runtime_seconds",
-    ]
-
-    for field in numeric_fields:
-        if not isinstance(results[field], (int, float)):
-            raise TypeError(
-                f"{field} must be numeric."
-            )
-
-    if results["minimum_temperature"] > results["maximum_temperature"]:
-        raise ValueError(
-            "Minimum temperature cannot exceed maximum temperature."
-        )
-
 
 def create_report(
     request: dict[str, Any],
     results: dict[str, Any],
-) -> dict[str, Any]:
-    """Create a decision-facing report."""
-
+)-> dict[str, Any]:
+    """Create a short decision-facing summary."""
+    peak_temperature = results["maximum_temperature"]
     threshold = request["review_threshold"]
-    maximum_temperature = results["maximum_temperature"]
 
-    review_required = maximum_temperature > threshold
+    if peak_temperature> threshold:
+        recommendation = (
+            "Peak temperature exceeds the review threshold. "
+            "Inspect the case before approval."
+        )
+        review_status = "review_required"
+    else:
+        recommendation = (
+            "Peak temperature is within the configured review threshold."
+        )
+        review_status = "within_threshold"
 
     return {
         "case_id": request["case_id"],
-        "status": results["status"],
-        "review_required": review_required,
+        "outcome": "Heat-diffusion simulation completed successfully.",
+        "review_status": review_status,
+        "peak_temperature": peak_temperature,
         "review_threshold": threshold,
-        "maximum_temperature": maximum_temperature,
-        "average_temperature": results["average_temperature"],
-        "center_temperature": results["center_temperature"],
-        "runtime_seconds": results["runtime_seconds"],
-        "message": (
-            "Manual review required."
-            if review_required
-            else "Result is within the configured review threshold."
-        ),
+        "recommendation": recommendation,
     }
+
+def main()-> None:
+    """Run the planner-reviewer-control-executor workflow."""
+    if not REQUEST_FILE.exists():
+        raise FileNotFoundError(
+            f"Create {REQUEST_FILE.name} before running this program."
+    )
+
+    request = read_json(REQUEST_FILE)
+
+    plan = create_plan(request)
+    write_json(PLAN_FILE, plan)
+
+    gate_report = validate_request(request, plan)
+    write_json(PRE_GATE_FILE, gate_report)
+
+
+    if gate_report["status"] != "passed":
+        print(
+            "Execution stopped: "
+            f"{gate_report['message']}"
+        )
+        return
+
+    
+    results = run_heat_simulation(request)
+    validate_results(results)
+    write_json(RESULTS_FILE, results)
+
+
+    report = create_report(request, results)
+    write_json(REPORT_FILE, report)
+
+
+    print("Simulation completed.")
+    print(f"Created: {PLAN_FILE}")
+    print(f"Created: {PRE_GATE_FILE}")
+    print(f"Created: {RESULTS_FILE}")
+    print(f"Created: {REPORT_FILE}")
+
+
+
+if __name__ == "__main__":
+    main()

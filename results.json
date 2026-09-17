@@ -4,8 +4,8 @@
   "grid_size": 20,
   "iterations": 100,
   "minimum_temperature": 20.0,
-  "maximum_temperature": 22.66446813848495,
-  "average_temperature": 20.199910194017253,
-  "center_temperature": 22.66446813848495,
-  "runtime_seconds": 0.006658199999947101
+  "maximum_temperature": 20.638,
+  "average_temperature": 20.172,
+  "center_temperature": 20.638,
+  "runtime_seconds": 0.007024
 }

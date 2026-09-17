@@ -1,18 +1,19 @@
 import json
 import os
 import re
+from pathlib import Path
 from dotenv import load_dotenv
 
 from typing import Annotated, Any
 from autogen import ConversableAgent, LLMConfig
 
 from orchestration_demo import (
- create_report,
- read_json,
- run_heat_simulation,
- validate_request,
- validate_results,
- write_json,
+    create_report,
+    read_json,
+    run_heat_simulation,
+    validate_request,
+    validate_results,
+    write_json,
 )
 
 
@@ -27,7 +28,7 @@ if not GEMINI_API_KEY:
 llm_config = LLMConfig(
     {
         "api_type": "google",
-        "model": "gemini-2.5-flash",
+        "model": "gemini-3.5-flash",
         "api_key": GEMINI_API_KEY,
         "temperature": 0,
     }
@@ -115,14 +116,17 @@ def heat_diffusion_simulation(
     validate_results(results)
     report = create_report(request, results)
 
-    write_json("results.json", results)
-    write_json("report.json", report)
+    # write_json("results.json", results)
+    # write_json("report.json", report)
+    write_json(Path("results.json"), results)
+    write_json(Path("report.json"), report)
 
     return {"results": results, "report": report}
 
 
 def main()-> None:
-    request = read_json("simulation_request.json")
+    # request = read_json("simulation_request.json")
+    request = read_json(Path("simulation_request.json"))
 
     plan_chat = controller.initiate_chat(
         recipient=planner,
@@ -132,7 +136,14 @@ def main()-> None:
     )
 
     plan = parse_json(plan_chat.summary)
-    write_json("plan.json", plan)
+    plan["constraints"] = {
+        "min_grid_size": 3,
+        "max_grid_size": 100,
+        "max_time_steps": 10000,
+        "max_diffusion_rate": 0.25,
+    }
+    # write_json("plan.json", plan)
+    write_json(Path("plan.json"), plan)
 
     review_chat = controller.initiate_chat(
         recipient=reviewer,
@@ -153,7 +164,8 @@ def main()-> None:
             "message": "; ".join(review["issues"]),
         }
 
-    write_json("gate_pre.json", gate)
+    # write_json("gate_pre.json", gate)
+    write_json(Path("gate_pre.json"), gate)
 
     if gate["status"] != "passed":
         print(f"Execution stopped: {gate['message']}")

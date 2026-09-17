@@ -1,11 +1,8 @@
 {
   "case_id": "heat_case_001",
-  "status": "completed",
-  "review_required": false,
+  "outcome": "Heat-diffusion simulation completed successfully.",
+  "review_status": "within_threshold",
+  "peak_temperature": 20.638,
   "review_threshold": 80.0,
-  "maximum_temperature": 22.66446813848495,
-  "average_temperature": 20.199910194017253,
-  "center_temperature": 22.66446813848495,
-  "runtime_seconds": 0.006658199999947101,
-  "message": "Result is within the configured review threshold."
+  "recommendation": "Peak temperature is within the configured review threshold."
 }
