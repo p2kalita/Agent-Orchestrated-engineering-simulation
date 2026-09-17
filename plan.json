@@ -1,0 +1,52 @@
+{
+  "case_id": "heat_case_001",
+  "simulation": {
+    "type": "heat_diffusion_2d",
+    "grid_size": 20,
+    "initial_temperature": 20.0,
+    "boundary_temperature": 20.0,
+    "hotspot_temperature": 100.0,
+    "time_steps": 100,
+    "diffusion_rate": 0.1
+  },
+  "steps": [
+    {
+      "name": "validate_request",
+      "description": "Validate all input parameters for the heat diffusion simulation.",
+      "action": "Check `grid_size` and `time_steps` are positive integers. Verify all temperature values are numbers. Ensure `diffusion_rate` is a positive float suitable for simulation stability (e.g., < 0.5 for explicit methods).",
+      "output": "Validation status (pass/fail) and parsed parameters."
+    },
+    {
+      "name": "run_heat_simulation",
+      "description": "Execute the 2D heat diffusion simulation.",
+      "action": "Initialize a `grid_size` x `grid_size` temperature grid. Set initial and boundary conditions, including a central hotspot. Apply the finite difference method iteratively for `time_steps` using the specified `diffusion_rate`.",
+      "output": "Final temperature distribution grid (2D array of floats)."
+    },
+    {
+      "name": "validate_results",
+      "description": "Analyze the simulation output against predefined criteria.",
+      "action": "Check if any grid cell's temperature exceeds the `review_threshold` (80.0). Verify the absence of NaN or infinite values. Evaluate overall thermal stability and convergence.",
+      "output": "Validation status (e.g., 'Passed', 'Flagged for Review', 'Failed') and any identified anomalies."
+    },
+    {
+      "name": "generate_report",
+      "description": "Compile a summary report of the simulation.",
+      "action": "Generate a report detailing input parameters, simulation duration, minimum, maximum, and average final temperatures. Include a summary of validation results and highlight any areas exceeding the `review_threshold`.",
+      "output": "Simulation report document (e.g., JSON summary, PDF link)."
+    }
+  ],
+  "constraints": [
+    {
+      "type": "simulation_stability",
+      "parameter": "diffusion_rate",
+      "value": "<= 0.25 (for standard 2D explicit finite difference, dx=dy=1)",
+      "description": "The diffusion rate must be within a stable range to prevent numerical instability."
+    },
+    {
+      "type": "results_review_threshold",
+      "parameter": "temperature",
+      "value": 80.0,
+      "description": "Any grid cell reaching or exceeding this temperature will be flagged during result validation."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "case_id": "heat_case_001",
+  "grid_size": 20,
+  "initial_temperature": 20.0,
+  "boundary_temperature": 20.0,
+  "hotspot_temperature": 100.0,
+  "time_steps": 100,
+  "diffusion_rate": 0.1,
+  "review_threshold": 80.0
+}

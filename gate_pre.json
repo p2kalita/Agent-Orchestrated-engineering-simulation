@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "checks": {
+    "required_fields": "passed",
+    "grid_size": "passed",
+    "time_steps": "passed",
+    "diffusion_rate": "passed",
+    "temperature_values": "passed"
+  },
+  "message": "The request is approved for execution."
+}
