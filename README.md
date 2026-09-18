@@ -150,11 +150,7 @@ _agent-orchestrated-engineering-simulation/
 ├── results.json                         # Numerical simulation solver metrics
 ├── report.json                          # Post-simulation engineering evaluation report
 │
-├── book/
-│   └── agent-orchestrated-engineering-simulation-fast.pdf  # Reference textbook
-│
 ├── code/
-│   ├── chapter3_prepare_ground.zip     # Chapter 3 starter package
 │   ├── orchestration_demo.py           # Reference demo implementation
 │   └── simulation_request.json         # Reference request configuration
 │
@@ -414,7 +410,7 @@ And `gate_pre.json` records `"status": "failed"`.
 
 ## References
 
-- **Accompanying Textbook**: `book/agent-orchestrated-engineering-simulation-fast.pdf`
+- **Accompanying Textbook**: `agent-orchestrated-engineering-simulation-fast`
 - **AutoGen (AG2) Documentation**: [https://ag2.ai/](https://ag2.ai/)
 - **Google GenAI Python SDK**: [https://github.com/googleapis/python-genai](https://github.com/googleapis/python-genai)
 - **Numerical Stability for Parabolic PDEs**: Finite Difference Heat Diffusion and the Courant-Friedrichs-Lewy / von Neumann condition ($r \le 0.25$).
